@@ -1,0 +1,74 @@
+#define BLYNK_TEMPLATE_ID "Masukkan_Template_ID"
+#define BLYNK_TEMPLATE_NAME "Monitoring Gas dan Suhu"
+#define BLYNK_AUTH_TOKEN "Masukkan_Auth_Token"
+
+#include <ESP8266WiFi.h>
+#include <BlynkSimpleEsp8266.h>
+#include <DHT.h>
+
+// WiFi
+char ssid[] = "Nama_WiFi";
+char pass[] = "Password_WiFi";
+
+// Pin Sensor dan Output
+#define DHTPIN D4
+#define DHTTYPE DHT22
+
+#define MQPIN A0
+#define BUZZER D5
+
+DHT dht(DHTPIN, DHTTYPE);
+BlynkTimer timer;
+
+// Fungsi kirim data ke Blynk
+void sendSensor()
+{
+  float suhu = dht.readTemperature();
+  float kelembapan = dht.readHumidity();
+
+  int gasValue = analogRead(MQPIN);
+
+  // Cek apakah sensor DHT terbaca
+  if (isnan(suhu) || isnan(kelembapan))
+  {
+    return;
+  }
+
+  // Kirim ke Blynk
+  Blynk.virtualWrite(V0, suhu);
+  Blynk.virtualWrite(V1, kelembapan);
+  Blynk.virtualWrite(V2, gasValue);
+
+  // Kondisi buzzer
+  if (gasValue > 500)
+  {
+    digitalWrite(BUZZER, HIGH);
+    Blynk.virtualWrite(V3, 1);
+  }
+  else
+  {
+    digitalWrite(BUZZER, LOW);
+    Blynk.virtualWrite(V3, 0);
+  }
+}
+
+void setup()
+{
+  Serial.begin(9600);
+
+  pinMode(BUZZER, OUTPUT);
+  digitalWrite(BUZZER, LOW);
+
+  dht.begin();
+
+  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+
+  // Kirim data tiap 2 detik
+  timer.setInterval(2000L, sendSensor);
+}
+
+void loop()
+{
+  Blynk.run();
+  timer.run();
+}
